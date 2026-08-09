@@ -119,10 +119,18 @@ class Game:
         return player_territories - enemy_territories
 
     def check_game_over(self):
-        owners = set()
+        player_won = True
+        enemy_won = True
         for territory in self.mappa:
-            owners.add(territory.get_owner())
-        return len(owners) == 1
+            if territory.get_owner() != "player":
+                player_won = False
+            if territory.get_owner() != "enemy":
+                enemy_won = False
+        if player_won:
+            return "player"
+        if enemy_won:
+            return "enemy"
+        return None
 
     def end_turn(self):
         for territory in self.mappa:
@@ -213,24 +221,87 @@ class Game:
             print("3. End turn")
 
             choice = int(input("> "))
-
             if choice == 1:
                 self.play_attack()
-
             elif choice == 2:
                 self.play_move()
-
             elif choice == 3:
                 self.end_turn()
-
             else:
                 print("Invalid choice.")
 
-            if self.check_game_over():
-                print("\n==============================")
-                print("       YOU WON! 🎉")
-                print("==============================")
+            winner = self.check_game_over()
+            if winner == "player":
+                print("YOU WON!")
                 break
+            elif winner == "enemy":
+                print("YOU LOST!")
+                break
+            else:
+                print("Game continues.")
 
             self.end_turn()
-            input("\nEnd turn. units produced. press enter to continue...")
+            input("\nPress ENTER for enemy turn...")
+
+            winner = self.bot_play()
+            if winner == "player":
+                print("\nYOU WON!")
+                break
+            elif winner == "enemy":
+                print("\nYOU LOST!")
+                break
+            input("\nPress ENTER for your turn...")
+
+    def bot_play(self):
+
+        print("\n==============================")
+        print("        ENEMY TURN")
+        print("==============================")
+
+        possible_actions = []
+        # ATTACK POSSIBILI
+        for territory in self.mappa:
+            if territory.get_owner() != "enemy":
+                continue
+            if territory.get_units_stored() <= 1:
+                continue
+            for neighbor in territory.get_neighbors():
+                if neighbor.get_owner() == "player":
+                    max_troops = territory.get_units_stored() - 1
+                    for troops in range(1, max_troops + 1):
+                        possible_actions.append(("attack", territory, neighbor, troops))
+        # MOVE POSSIBILI
+        for territory in self.mappa:
+            if territory.get_owner() != "enemy":
+                continue
+            if territory.get_units_stored() <= 1:
+                continue
+            for neighbor in territory.get_neighbors():
+                if neighbor.get_owner() == "enemy":
+                    max_troops = territory.get_units_stored() - 1
+                    for troops in range(1, max_troops + 1):
+                        possible_actions.append(("move", territory, neighbor, troops))
+
+        possible_actions.append(("nothing",))
+        action = random.choice(possible_actions)
+        if action[0] == "nothing":
+            print("Enemy does nothing.")
+        elif action[0] == "attack":
+            _, attacker, defender, troops = action
+            print(
+                f"Enemy attacks {defender.get_name()} "
+                f"from {attacker.get_name()} "
+                f"with {troops} troops."
+            )
+            self.attack(attacker, defender, troops)
+        elif action[0] == "move":
+            _, source, destination, troops = action
+            print(
+                f"Enemy moves {troops} troops "
+                f"from {source.get_name()} "
+                f"to {destination.get_name()}."
+            )
+            self.move_troops(source, destination, troops)
+        # Fine turno bot
+        self.end_turn()
+        return self.check_game_over()
