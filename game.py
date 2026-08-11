@@ -1,5 +1,3 @@
-import territory as t
-import world_map as wm
 import random
 
 def calculate_odds(attacking_units, defending_units):
@@ -14,76 +12,79 @@ def fight(attacking_units, defending_units):
     else:
         return "defender"
 
+
+def attack(attacker, defender, troops):
+    # Controlli preliminari
+    if attacker == defender:
+        print("attacker and defender are same")
+        return False
+    if attacker.get_owner() == defender.get_owner():
+        print("attacker and defender have same owner")
+        return False
+    if defender not in attacker.get_neighbors():
+        print("defender is not in attacker's neighbors")
+        return False
+    if troops <= 0:
+        print("troops must be positive")
+        return False
+    if troops >= attacker.get_units_stored():
+        print("you must leave at least one unit in the territory")
+        return False
+    if defender.get_owner() == "none":
+        defender.owner = attacker.get_owner()
+        defender.units_stored = troops
+        attacker.units_stored -= troops
+        print("territory conquered without fight")
+        return True
+
+    attacking_units = troops
+    while attacking_units > 0 and defender.get_units_stored() > 0:
+        winner = fight(attacking_units,defender.get_units_stored())
+        if winner == "attacker":
+            defender.units_stored -= 1
+            print("defender loses 1 unit")
+        else:
+            attacking_units -= 1
+            print("attacker loses 1 unit")
+
+    attacker.units_stored -= troops
+
+    if defender.units_stored <= 0:
+        defender.owner = attacker.owner
+        defender.units_stored = attacking_units
+        print("territory conquered!")
+    return True
+
+
+def move_troops(source, destination, troops):
+    if source == destination:
+        print("source and destination are the same")
+        return False
+    if source.get_owner() != destination.get_owner():
+        print("you can only move troops between your territories")
+        return False
+    if destination not in source.get_neighbors():
+        print("destination is not a neighbor of source")
+        return False
+    if troops <= 0:
+        print("troops must be positive")
+        return False
+    if troops >= source.get_units_stored():
+        print("you must leave at least one unit in the source territory")
+        return False
+    source.units_stored -= troops
+    destination.units_stored += troops
+    print(
+        f"{troops} troops moved from "
+        f"{source.get_name()} to {destination.get_name()}"
+    )
+    return True
+
+
 class Game:
     def __init__(self, mappa):
         self.mappa = mappa
         self.players = []
-
-    def attack(self, attacker, defender, troops):
-        # Controlli preliminari
-        if attacker == defender:
-            print("attacker and defender are same")
-            return False
-        if attacker.get_owner() == defender.get_owner():
-            print("attacker and defender have same owner")
-            return False
-        if defender not in attacker.get_neighbors():
-            print("defender is not in attacker's neighbors")
-            return False
-        if troops <= 0:
-            print("troops must be positive")
-            return False
-        if troops >= attacker.get_units_stored():
-            print("you must leave at least one unit in the territory")
-            return False
-        if defender.get_owner() == "none":
-            defender.owner = attacker.get_owner()
-            defender.units_stored = troops
-            attacker.units_stored -= troops
-            print("territory conquered without fight")
-            return True
-
-        attacking_units = troops
-        while attacking_units > 0 and defender.get_units_stored() > 0:
-            winner = fight(attacking_units,defender.get_units_stored())
-            if winner == "attacker":
-                defender.units_stored -= 1
-                print("defender loses 1 unit")
-            else:
-                attacking_units -= 1
-                print("attacker loses 1 unit")
-
-        attacker.units_stored -= troops
-
-        if defender.units_stored <= 0:
-            defender.owner = attacker.owner
-            defender.units_stored = attacking_units
-            print("territory conquered!")
-        return True
-
-    def move_troops(self, source, destination, troops):
-        if source == destination:
-            print("source and destination are the same")
-            return False
-        if source.get_owner() != destination.get_owner():
-            print("you can only move troops between your territories")
-            return False
-        if destination not in source.get_neighbors():
-            print("destination is not a neighbor of source")
-            return False
-        if troops <= 0:
-            print("troops must be positive")
-            return False
-        if troops >= source.get_units_stored():
-            print("you must leave at least one unit in the source territory")
-            return False
-        source.units_stored -= troops
-        destination.units_stored += troops
-        print(
-            f"{troops} troops moved from "
-            f"{source.get_name()} to {destination.get_name()}"
-        )
-        return True
 
     def step(self, action):
         action_type = action[0]
@@ -91,7 +92,7 @@ class Game:
             attacker = action[1]
             defender = action[2]
             troops = action[3]
-            success = self.attack(attacker,defender,troops)
+            success = attack(attacker,defender,troops)
             if not success:
                 return self.get_state(), -10, False
             reward = self.calculate_reward()
@@ -122,9 +123,9 @@ class Game:
         player_won = True
         enemy_won = True
         for territory in self.mappa:
-            if territory.get_owner() != "player":
+            if territory.get_owner() == "enemy":
                 player_won = False
-            if territory.get_owner() != "enemy":
+            if territory.get_owner() == "player":
                 enemy_won = False
         if player_won:
             return "player"
@@ -133,9 +134,10 @@ class Game:
         return None
 
     def end_turn(self):
-        for territory in self.mappa:
-            if territory.get_owner() != "none":
-                territory.produce_units()
+        return
+        # for territory in self.mappa:
+        #     if territory.get_owner() != "none":
+        #         territory.produce_units()
 
     def play_attack(self):
         print("\nChoose your territory to attack from.")
@@ -171,7 +173,7 @@ class Game:
         )
         troops = int(input("How many troops do you want to attack with? "))
 
-        result = self.attack(attacker, defender, troops)
+        result = attack(attacker, defender, troops)
         if result:
             print("\nAttack completed.")
 
@@ -200,7 +202,46 @@ class Game:
             return
         destination = neighbors[destination_id]
         troops = int(input("How many troops do you want to move? "))
-        self.move_troops(source,destination,troops)
+        move_troops(source,destination,troops)
+
+    def calculate_reinforcements(self, owner):
+        units = 0
+        for territory in self.mappa:
+            if territory.get_owner() == owner:
+                units += territory.get_units_produced()
+        return units
+
+    def deploy_units(self, owner):
+        units = self.calculate_reinforcements(owner)
+        territory_list = [t for t in self.mappa if t.get_owner() == owner]
+
+        print(f"\nYou have {units} units to deploy.")
+        for t in territory_list:
+            if units <= 0:
+                return
+            print(
+                f"\n{t.get_name()} | "
+                f"Units: {t.get_units_stored()} | "
+                f"Units available: {units}"
+            )
+            print(f"How many units do you want to deploy to {t.get_name()}?")
+            deployed = int(input("> "))
+            if deployed > 0 and deployed <= units:
+                t.add_units(deployed)
+                units -= deployed
+            else:
+                print(f"Invalid number. Zero units deployed to {t.get_name()}.")
+
+    def bot_deploy_units(self):
+        units = self.calculate_reinforcements("enemy")
+        territory_list = [t for t in self.mappa if t.get_owner() == "enemy"]
+
+        while units > 0 and territory_list:
+            t = random.choice(territory_list)
+            deployed = random.randint(1, units)
+            t.add_units(deployed)
+            units -= deployed
+            print(f"Enemy deploys {deployed} units to {t.get_name()}.")
 
     def play(self):
         while True:
@@ -214,6 +255,8 @@ class Game:
                     f"Owner: {territory.get_owner()} | "
                     f"Units: {territory.get_units_stored()}"
                 )
+
+            self.deploy_units("player")
 
             print("\nWhat do you want to do?")
             print("1. Attack")
@@ -258,6 +301,8 @@ class Game:
         print("        ENEMY TURN")
         print("==============================")
 
+        self.bot_deploy_units()
+
         possible_actions = []
         # ATTACK POSSIBILI
         for territory in self.mappa:
@@ -293,7 +338,7 @@ class Game:
                 f"from {attacker.get_name()} "
                 f"with {troops} troops."
             )
-            self.attack(attacker, defender, troops)
+            attack(attacker, defender, troops)
         elif action[0] == "move":
             _, source, destination, troops = action
             print(
@@ -301,7 +346,7 @@ class Game:
                 f"from {source.get_name()} "
                 f"to {destination.get_name()}."
             )
-            self.move_troops(source, destination, troops)
+            move_troops(source, destination, troops)
         # Fine turno bot
         self.end_turn()
         return self.check_game_over()

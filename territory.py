@@ -10,6 +10,9 @@ class Territory():
         if(self.owner != None):
             self.units_stored += self.units_produced
 
+    def add_units(self, new_units):
+        self.units_stored += new_units
+
     def add_neighbor(self, neighbor):
         self.neighbors.append(neighbor)
 
