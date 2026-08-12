@@ -5,14 +5,14 @@ def add_as_neighbors(territory1, territory2):
     territory2.add_neighbor(territory1)
 
 def init_world():
-    NorthAmerica = t.Territory("North America", "None", 6, 0)
-    SouthAmerica = t.Territory("South America", "None", 5, 0)
-    Europe = t.Territory("Europe", "None", 6, 0)
-    NorthernAfrica = t.Territory("Northern Africa", "None", 4, 0)
-    SouthernAfrica = t.Territory("Southern Africa", "None", 5, 0)
-    WestAsia = t.Territory("West Asia", "None", 5, 0)
-    EastAsia = t.Territory("East Asia", "None", 5, 0)
-    Oceania = t.Territory("Oceania", "None", 4, 0)
+    NorthAmerica = t.Territory("North America", "none", 6, 0)
+    SouthAmerica = t.Territory("South America", "none", 5, 0)
+    Europe = t.Territory("Europe", "none", 6, 0)
+    NorthernAfrica = t.Territory("Northern Africa", "none", 4, 0)
+    SouthernAfrica = t.Territory("Southern Africa", "none", 5, 0)
+    WestAsia = t.Territory("West Asia", "none", 5, 0)
+    EastAsia = t.Territory("East Asia", "none", 5, 0)
+    Oceania = t.Territory("Oceania", "none", 4, 0)
 
     add_as_neighbors(NorthAmerica, SouthAmerica)
     add_as_neighbors(NorthAmerica, Europe)
