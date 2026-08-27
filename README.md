@@ -9,7 +9,7 @@ Built for Symbolic and Evolutionary Artificial Intelligence project.
 - probabilistic combat: attack outcome depends on the attacker/defender troop ratio
 
 Status:
-V symmetric engine working (easy, medium tested)
-V first successful training run on easy (DQN Agent vs Random Bot)(improvements can be made)
-X medium training in progress, still being tuned
-X hard and italy not playable yet 
+- V symmetric engine working (easy, medium tested)
+- V first successful training run on easy (DQN Agent vs Random Bot)(improvements can be made)
+- X medium training in progress, still being tuned
+- X hard and italy not playable yet 
