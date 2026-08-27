@@ -1,14 +1,13 @@
+##il file territory contiene solo la classe territory che gestisce il modo
+##in cui un territorio singolo funziona e le sue proprietà
+
 class Territory():
     def __init__(self, name, owner, units_produced, units_stored):
-        self.name = name;
-        self.owner = owner;
-        self.units_produced = units_produced;
-        self.units_stored = units_stored;
-        self.neighbors = [];
-
-    def produce_units(self):
-        if(self.owner != None):
-            self.units_stored += self.units_produced
+        self.name = name
+        self.owner = owner
+        self.units_produced = units_produced
+        self.units_stored = units_stored
+        self.neighbors = []
 
     def add_units(self, new_units):
         self.units_stored += new_units
