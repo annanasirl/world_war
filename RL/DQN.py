@@ -21,7 +21,7 @@ def encode_state(state):
         if isinstance(val, str):
             encoded.append(owner_map[val])
         else:
-            encoded.append(val / 50.0) #boh #TODO: capire qui perchè avevo messo 50?
+            encoded.append(val / 50.0) #boh #T capire qui perchè avevo messo 50?
     return np.array(encoded, dtype=np.float32).reshape(1, -1)
 
 #4 tipi di azioni tipo azione one hot coded,
@@ -53,13 +53,15 @@ def encode_action(action, mappa, deploy_pool=None, territory_to_index=None):
         _, attacker, defender, troops = action
         source_idx[0] = territory_to_index[attacker] / n
         dest_idx[0] = territory_to_index[defender] / n
-        truppe[0] = troops
+        max_troops = attacker.get_units_stored() - 1
+        truppe[0] = troops / max_troops if max_troops > 0 else 0.0
     elif action[0] == "move":
         tipo[2] = 1
         _, source, destination, troops = action
         source_idx[0] = territory_to_index[source] / n
         dest_idx[0] = territory_to_index[destination] / n
-        truppe[0] = troops
+        max_troops = source.get_units_stored() - 1
+        truppe[0] = troops / max_troops if max_troops > 0 else 0.0
     else:  # pass
         tipo[3] = 1
     return np.concatenate([tipo, source_idx, dest_idx, truppe])
@@ -69,11 +71,17 @@ class ReplayMemory:
     def __init__(self, capacity = 9000):
         self.capacity = capacity
         self.buffer = []
+        self._next_idx = 0
 
     def push(self, state, action_idx, reward, next_state, done, next_legal_actions):
-        if len(self.buffer) >= self.capacity:
-            self.buffer.pop(0)
-        self.buffer.append((state, action_idx, reward, next_state, done, next_legal_actions))
+        entry = (state, action_idx, reward, next_state, done, next_legal_actions)
+        if len(self.buffer) < self.capacity:
+            self.buffer.append(entry)
+        else:
+            # uso buffer circolare invece di fare pop(0)
+            # ceh era collo di bottiglia una volta che il buffer si riempie
+            self.buffer[self._next_idx] = entry
+        self._next_idx = (self._next_idx + 1) % self.capacity
 
     def sample(self, batch_size):
         return random.sample(self.buffer, batch_size)
@@ -191,8 +199,9 @@ class DQNagent:
                 counts.append(0)
                 continue
             ns_vec = encode_state(ns).flatten()
-            for a in next_actions:
-                a_vec = encode_action(a, self.mappa, territory_to_index=self.territory_to_idx)
+            # next_actions contiene già i vettori codificati da
+            # encode_legal_actions_now in train.py: non vanno ri-codificati
+            for a_vec in next_actions:
                 flat_rows.append(np.concatenate([ns_vec, a_vec]))
             counts.append(len(next_actions))
 

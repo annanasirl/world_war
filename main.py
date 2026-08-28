@@ -4,9 +4,13 @@ from game import Game, HumanController, RandomController, DQNController, PLAYER1
     PHASE_ACTION
 from RL import DQNagent
 
-MODEL_PATH = "trained_models/DQN_vs_random/easy_dqn_weights.pth"
+MODEL_PATH = "trained_models/DQN_vs_random"
 
-def load_agent(mappa, model_path = MODEL_PATH):
+def model_path_for(diff):
+    return os.path.join(MODEL_PATH, f"{diff}_dqn_weights.pth")
+
+def load_agent(mappa, diff="easy"):
+    model_path = model_path_for(diff)
     agent = DQNagent(mappa)
     if not os.path.exists(model_path):
         raise FileNotFoundError(
@@ -32,7 +36,7 @@ def choose_scenario():
     print("Scelta non valida, riprovo.")
     return choose_scenario()
 
-def choose_mode(mappa):
+def choose_mode(mappa, diff):
     print("\nScegli la modalità di gioco:")
     print("1. Umano vs Umano")
     print("2. Umano vs Random")
@@ -45,7 +49,7 @@ def choose_mode(mappa):
     if choice == "2":
         return {PLAYER1: HumanController(), PLAYER2: RandomController()}
     if choice == "3":
-        agent = load_agent(mappa)
+        agent = load_agent(mappa, diff)
         print("AI caricata. Buona fortuna :))")
         return {PLAYER1: HumanController(), PLAYER2: DQNController(agent)}
 
@@ -90,7 +94,7 @@ def main():
     scenario = choose_scenario()
     world = scenarios.build_world(scenario)
     game = Game(world, verbose=True)
-    controllers = choose_mode(game.mappa)
+    controllers = choose_mode(game.mappa, scenario)
 
     winner = run_game(game, controllers)
     report_winner(winner)

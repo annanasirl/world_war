@@ -1,17 +1,20 @@
 import os
 import torch
 
-from game import Game, RandomController, PLAYER1, PLAYER2, PHASE_DEPLOY, scenarios
+from game import Game, RandomController, PLAYER1, PLAYER2, PHASE_DEPLOY, scenarios, PHASE_ACTION
 from RL import DQNagent
 
 #costanti
-MODEL_PATH = "./trained_models/"
+MODEL_PATH = "./trained_models/DQN_vs_random"
 
 def model_path_for(scenario):
-    return os.path.join(MODEL_PATH, f"{scenario}_dqn_weights_1.pth")
+    return os.path.join(MODEL_PATH, f"{scenario}_dqn_weights_b.pth")
 
-#PER SEMPLICITÀ ALLENO L'AI COME PLAYER 1
-def play_opp_turn(game, opp_player, opp_controller):
+def _perspective_state(game, player):
+    return game.get_state() if player == PLAYER1 else game.get_swapped_state()
+
+#l'avversario e' sempre lo slot opposto a quello dell'agente in questo episodio
+def play_opp_turn(game, opp_player, opp_controller, agent_player):
     state = game.get_state()
     while game.current_player == opp_player:
         action = opp_controller.choose_action(game, opp_player)
@@ -19,13 +22,13 @@ def play_opp_turn(game, opp_player, opp_controller):
         if done:
             break
     winner = game.check_game_over()
-    if winner == PLAYER2:
+    if winner == opp_player:
         return state, -100, True
-    if winner == PLAYER1:
+    if winner == agent_player:
         return state, 100, True
-    return state, game.calculate_reward(PLAYER1), False
+    return state, game.calculate_reward(agent_player), False
 
-def train(scenario = "easy", n_episodes = 1000, MAX_STEPS=5000, opp_controller =None, learn_every = 1):
+def train(scenario = "easy", n_episodes = 1000, max_steps=5000, opp_controller =None, learn_every = 1):
     #creo mappa, il gioco e agent, setto il controller dell'opponente
     world = scenarios.build_world(scenario)
     game = Game(world)
@@ -39,20 +42,36 @@ def train(scenario = "easy", n_episodes = 1000, MAX_STEPS=5000, opp_controller =
     losses = 0
     boh = 0
     steps_sum = 0
+    turns_sum = 0
     territories_sum = 0
 
     #inizio training per ogni episodio
     for episode in range(n_episodes):
+
+        # agente gioca a episodi alterni come PLAYER1 e come PLAYER2
+        # x imparare a giocare bene da entrambi i lati
+        agent_player = PLAYER1 if episode % 2 == 0 else PLAYER2
+        opp_player = PLAYER2 if agent_player == PLAYER1 else PLAYER1
         #faccio ripartire il gioco
-        state = game.reset()
+        game.reset()
         done = False
         steps = 0
+        turns = 0
         reward = 0
 
+        # se agente fa PLAYER2, il gioco parte comunque con PLAYER1
+        # cosi' fa sempre reset() e faccio giocare prima l'avversario
+        if game.current_player == opp_player:
+            _, reward, done = play_opp_turn(game, opp_player, opp_controller, agent_player)
+        state = _perspective_state(game, agent_player)
+
         #while not condizioni di terminazione
-        while not done and steps < MAX_STEPS:
-            #prendo le azioni possibili di PLAYER1
-            legal_actions = game.get_legal_actions(PLAYER1)
+        while not done and turns < max_steps:
+            # ricordo in che fase eravamo prima di questa decisione: solo la
+            # decisione presa in PHASE ACTION chiude un turno completo
+            phase_before = game.phase
+            #prendo le azioni possibili di agent_player
+            legal_actions = game.get_legal_actions(agent_player)
             #se siamo nella fase di deploy devo inizializzare deploy pool
             deploy_pool = game.get_deploy_pool() if game.phase == PHASE_DEPLOY else None
             #scelgo l'azione tra le legal actions
@@ -60,15 +79,16 @@ def train(scenario = "easy", n_episodes = 1000, MAX_STEPS=5000, opp_controller =
             #faccio encoding dell'azione in modo che poi la DNN possa usarla
             action_vec = agent.encode_action_now(action, deploy_pool=deploy_pool)
             #eseguo l'azione e ricavo next_state, reward, done
-            next_state, reward, done = game.step(action, PLAYER1)
+            next_state, reward, done = game.step(action, agent_player)
 
             #se il turno dell'agente ha finito e il gioco non è finito devo prima
             #far giocare l'avversario
             #(se non vedo cosa fa l'avversario non posso scegliere la prox azione)
-            if not done and game.current_player == PLAYER2:
-                next_state, reward, done = play_opp_turn(game, PLAYER2, opp_controller)
+            if not done and game.current_player == opp_player:
+                _, reward, done = play_opp_turn(game, opp_player, opp_controller, agent_player)
+            next_state = _perspective_state(game, agent_player)
             #prendo le nuove azioni possibili (cambiano di turno in turno)
-            next_legal_actions = [] if done else game.get_legal_actions(PLAYER1)
+            next_legal_actions = [] if done else game.get_legal_actions(agent_player)
             next_deploy_pool = None
             if not done and game.phase == PHASE_DEPLOY:
                 next_deploy_pool = game.get_deploy_pool()
@@ -82,6 +102,8 @@ def train(scenario = "easy", n_episodes = 1000, MAX_STEPS=5000, opp_controller =
                 agent.learn()
             state = next_state
             steps += 1
+            if phase_before == PHASE_ACTION:
+                turns += 1
         if reward == 100:
             wins += 1
         elif reward == -100:
@@ -90,7 +112,7 @@ def train(scenario = "easy", n_episodes = 1000, MAX_STEPS=5000, opp_controller =
             boh += 1
 
         steps_sum += steps
-        territories_sum += sum(1 for t in game.mappa if t.get_owner() == PLAYER1)
+        territories_sum += sum(1 for t in game.mappa if t.get_owner() == agent_player)
 
         agent.decay_eps()
         agent.update_target_network(episode)
@@ -98,7 +120,7 @@ def train(scenario = "easy", n_episodes = 1000, MAX_STEPS=5000, opp_controller =
             n = episode + 1 if episode < 100 else 100
             print(f"Episode {episode:4d} | Wins last 100: {wins} | Losses last 100: {losses} | "
                   f"Bohs last 100: {boh} | Epsilon: {agent.epsilon:.3f} | "
-                  f"Avg steps: {steps_sum / n:.0f} | Avg PLAYER1 territories at end: {territories_sum / n:.1f}")
+                  f"Avg steps: {steps_sum / n:.0f} | Avg agent territories at end: {territories_sum / n:.1f}")
             wins = 0
             losses = 0
             boh = 0
@@ -110,6 +132,5 @@ def train(scenario = "easy", n_episodes = 1000, MAX_STEPS=5000, opp_controller =
     print(f"pesi salvati in {model_path}")
     return agent
 
-#TODO: fix performance issue for training on medium
 if __name__ == "__main__":
-    train(scenario="medium", n_episodes=200,learn_every=10)
+    train(scenario="medium", n_episodes=2000, max_steps=10000,learn_every=10)
