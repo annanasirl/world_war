@@ -1,6 +1,6 @@
 Turn-based territorial conquest game (Risiko-style) with a fully symmetric game engine and a Deep Q-Network agent trained to play it.
 
-Built for Symbolic and Evolutionary Artificial Intelligence project.
+CURRENTLY STILL BUILDING for Symbolic and Evolutionary Artificial Intelligence project.
 
 - 4 maps: easy (8 territories), medium (41), hard (22), italy (20 regions)
 - symmetric engine; PLAYER1 and PLAYER2 follow the exact same rules with no player/enemy distinction
