@@ -53,8 +53,8 @@ def build_italy_world():
     for territory in world:
         territory.owner = NONE
         territory.units_stored = STARTING_UNITS
-        world[8].owner = PLAYER1
-        world[14].owner = PLAYER2
+    world[8].owner = PLAYER1
+    world[14].owner = PLAYER2
     return world
 
 

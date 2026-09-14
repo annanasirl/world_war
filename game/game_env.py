@@ -1,6 +1,11 @@
-from .rules import PLAYER1, PLAYER2, PHASE_DEPLOY, PHASE_ACTION, attack, move_troops, troop_options
+from .rules import PLAYER1, PLAYER2, NONE, PHASE_DEPLOY, PHASE_ACTION, attack, move_troops, troop_options
 
 from .controllers import RandomController
+
+_EVENT_REWARDS = {"conquered enemy": 2,
+                  "conquered neutral": 1,
+                  "failed attack": -1,
+                  "none": 0}
 
 class Game:
     def __init__(self, mappa, verbose=False):
@@ -16,16 +21,17 @@ class Game:
         self._deploy_pool = self.calculate_reinforcements(PLAYER1)
         self._deploy_territories = [t for t in self.mappa if t.get_owner() == PLAYER1]
         self._deploy_index = 0
+        self._last_event = None
 
     #ciclo di vita del gioco
-    def reset(self):
+    def reset(self, starting_player=PLAYER1):
         for t, (owner, units) in zip(self.mappa, self._initial_state):
             t.owner = owner
             t.units_stored = units
-        self.current_player = PLAYER1
+        self.current_player = starting_player
         self.phase = PHASE_DEPLOY
-        self._deploy_pool = self.calculate_reinforcements(PLAYER1)
-        self._deploy_territories = [t for t in self.mappa if t.get_owner() == PLAYER1]
+        self._deploy_pool = self.calculate_reinforcements(starting_player)
+        self._deploy_territories = [t for t in self.mappa if t.get_owner() == starting_player]
         self._deploy_index = 0
         return self.get_state()
 
@@ -88,20 +94,31 @@ class Game:
 
     def _step_action(self, action_type, action):
         acting_player = self.current_player
+        self._last_event = (acting_player, "none")
+
         if action_type == "attack":
             _, attacker, defender, troops = action
             if attacker.get_owner() != acting_player:
                 return self.get_state(), -10, False
+            defender_owner_before = defender.get_owner()
             if not attack(attacker, defender, troops):
                 if self.verbose:
                     print(f"[{self.current_player}] Invalid attack.")
                 return self.get_state(), -10, False
-            if self.verbose:
-                if defender.get_owner() == acting_player:
-                    print(f"[{self.current_player}] Attacked {defender.get_name()} with {troops} troops -> Territory conquered!")
+            if defender.get_owner() == acting_player:
+                if defender_owner_before == NONE:
+                    self._last_event = (acting_player, "conquered_neutral")
+                    if self.verbose:
+                        print(f"[{self.current_player}] Attacked {defender.get_name()} -> Neutral conquered!")
                 else:
-                    print(f"[{self.current_player}] Attacked {defender.get_name()} with {troops} troops -> "
-                          f"Attack failed. Enemy holds with {defender.get_units_stored()} units.")
+                    self._last_event = (acting_player, "conquered_enemy")
+                    if self.verbose:
+                        print(f"[{self.current_player}] Attacked {defender.get_name()} -> Enemy territory conquered!")
+            else:
+                self._last_event = (acting_player, "failed_attack")
+                if self.verbose:
+                    print(
+                        f"[{self.current_player}] Attack failed. Enemy holds with {defender.get_units_stored()} units.")
 
         elif action_type == "move":
             _, source, destination, troops = action
@@ -130,7 +147,7 @@ class Game:
         self._start_deploy_phase(self.current_player)
         self._deploy_index = 0
 
-        return self.get_state(), self.calculate_reward(acting_player), False
+        return self.get_state(), self.reward_for(acting_player), False
 
     def _switch_players(self, player):
         if player == PLAYER1:
@@ -172,11 +189,15 @@ class Game:
         return swapped
 
     #reward intermedia
-    def calculate_reward(self, player):
-        opponent = self._switch_players(player)
-        my_t = sum(1 for t in self.mappa if t.get_owner() == player)
-        opp_t = sum(1 for t in self.mappa if t.get_owner() == opponent)
-        return my_t - opp_t
+    def reward_for(self, player):
+        if self._last_event is None:
+            return 0
+        mover, event = self._last_event
+        if player == mover:
+            return _EVENT_REWARDS[event]
+        if event == "conquered_enemy":
+            return -2  # l'avversario mi ha appena preso un territorio
+        return 0
 
     def check_game_over(self):
         owners = {t.get_owner() for t in self.mappa}

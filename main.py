@@ -4,10 +4,10 @@ from game import Game, HumanController, RandomController, DQNController, PLAYER1
     PHASE_ACTION
 from RL import DQNagent
 
-MODEL_PATH = "trained_models/DQN_vs_random"
+MODEL_PATH = "trained_models/dqn_vs_random"
 
 def model_path_for(diff):
-    return os.path.join(MODEL_PATH, f"{diff}_dqn_weights.pth")
+    return os.path.join(MODEL_PATH, f"{diff}_dqn_weights_rand__seed0.pth")
 
 def load_agent(mappa, diff="easy"):
     model_path = model_path_for(diff)
@@ -54,7 +54,7 @@ def choose_mode(mappa, diff):
         return {PLAYER1: HumanController(), PLAYER2: DQNController(agent)}
 
     print("Scelta non valida, riprovo.")
-    return choose_mode(mappa)
+    return choose_mode(mappa, diff)
 
 def print_board(game):
     print("\n==============================")

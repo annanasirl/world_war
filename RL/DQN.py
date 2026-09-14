@@ -66,6 +66,42 @@ def encode_action(action, mappa, deploy_pool=None, territory_to_index=None):
         tipo[3] = 1
     return np.concatenate([tipo, source_idx, dest_idx, truppe])
 
+
+def encode_deploy_batch(territory, amounts, pool, territory_to_index, n):
+    amounts = np.asarray(amounts, dtype=np.float32)
+    k = amounts.shape[0]
+    tipo = np.zeros((k, 4), dtype=np.float32)
+    tipo[:, 0] = 1.0
+    source_idx = np.full((k, 1), -1.0, dtype=np.float32)
+    dest_idx = np.full((k, 1), -1.0, dtype=np.float32)
+    if territory is not None:
+        dest_idx[:] = territory_to_index[territory] / n
+    if pool:
+        truppe = (amounts / pool).reshape(-1, 1)
+    else:
+        truppe = np.zeros((k, 1), dtype=np.float32)
+    return np.concatenate([tipo, source_idx, dest_idx, truppe], axis=1)
+
+def encode_action_phase_batch(actions, territory_to_index, n):
+    k = len(actions)
+    out = np.zeros((k, 7), dtype=np.float32)
+    out[:, 4] = -1.0  # source_idx (default per "pass")
+    out[:, 5] = -1.0  # dest_idx
+    out[:, 6] = -1.0  # truppe
+
+    for i, action in enumerate(actions):
+        kind = action[0]
+        if kind == "pass":
+            out[i, 3] = 1.0
+            continue
+        _, src, dst, troops = action
+        out[i, 1 if kind == "attack" else 2] = 1.0
+        out[i, 4] = territory_to_index[src] / n
+        out[i, 5] = territory_to_index[dst] / n
+        max_troops = src.get_units_stored() - 1
+        out[i, 6] = troops / max_troops if max_troops > 0 else 0.0
+    return out
+
 #classe per la replay memory
 class ReplayMemory:
     def __init__(self, capacity = 9000):
@@ -137,7 +173,16 @@ class DQNagent:
         return encode_action(action, self.mappa, deploy_pool=deploy_pool, territory_to_index=self.territory_to_idx)
 
     def encode_legal_actions_now(self, legal_actions, deploy_pool=None):
-        return [encode_action(a, self.mappa, deploy_pool=deploy_pool, territory_to_index=self.territory_to_idx) for a in legal_actions]
+        return list(self._encode_actions_batch(legal_actions, deploy_pool=deploy_pool))
+
+    def _encode_actions_batch(self, legal_actions, deploy_pool=None):
+        if not legal_actions:
+            return np.empty((0, self.action_space_size), dtype=np.float32)
+        if legal_actions[0][0] == "deploy":
+            territory = legal_actions[0][1]
+            amounts = [a[2] for a in legal_actions]
+            return encode_deploy_batch(territory, amounts, deploy_pool, self.territory_to_idx, len(self.mappa))
+        return encode_action_phase_batch(legal_actions, self.territory_to_idx, len(self.mappa))
 
     #FUNZIONE X inserire nella replay memory le tuple su cui allenare la rete
     def save_action_in_mem(self, state, action_vec, reward, next_state, done, next_legal_actions_vec):
@@ -164,7 +209,7 @@ class DQNagent:
             return legal_actions[0]
 
         state_vec = encode_state(state).flatten()
-        action_vecs = np.stack([encode_action(a, self.mappa, deploy_pool=deploy_pool, territory_to_index=self.territory_to_idx) for a in legal_actions])
+        action_vecs = self._encode_actions_batch(legal_actions, deploy_pool=deploy_pool)
         state_block = np.tile(state_vec, (len(legal_actions), 1))
         sa = np.concatenate([state_block, action_vecs], axis=1)
         sa_t = torch.tensor(sa, dtype=torch.float32, device=self.device)

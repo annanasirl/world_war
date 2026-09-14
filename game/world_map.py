@@ -436,7 +436,7 @@ def init_world_italian_hunger_games():
     FVG = t.Territory("Friuli Venezia Giulia", "none", 2, 0)
     Lazio = t.Territory("Lazio", "none", 5, 0)
     Liguria = t.Territory("Liguria", "none", 3, 0)
-    Lombardia = t.Territory("Lombardia", "none", 6, 0)
+    Lombardia = t.Territory("Lombardia", "none", 5, 0)
     Marche = t.Territory("Marche", "none", 2, 0)
     Molise = t.Territory("Molise", "none", 1, 0)
     Piemonte = t.Territory("Piemonte", "none", 5, 0)
@@ -484,6 +484,7 @@ def init_world_italian_hunger_games():
     add_as_neighbors(Sardegna, Liguria)
     add_as_neighbors(Sardegna, Toscana)
     add_as_neighbors(Sardegna, Campania)
+    add_as_neighbors(Sardegna, Sicilia)
 
     territories = [Abruzzo, Basilicata, Calabria, Campania,
                    EmiliaRomagna, FVG, Lazio, Liguria,
