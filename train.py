@@ -147,6 +147,7 @@ def train(scenario = "easy", n_episodes = 1000, max_steps=5000, opp_controller =
             # chiamo learn e poi vado avanti
             if steps % learn_every == 0:
                 agent.learn()
+            agent.update_target_network()
             state = next_state
             steps += 1
             if phase_before == PHASE_ACTION:
@@ -176,7 +177,6 @@ def train(scenario = "easy", n_episodes = 1000, max_steps=5000, opp_controller =
         territories_history.append(final_territories)
 
         agent.decay_eps()
-        agent.update_target_network()
         if episode % 100 == 0:
             n = episode + 1 if episode < 100 else 100
             print(f"Episode {episode:4d} | Wins last 100: {wins} | Losses last 100: {losses} | "
