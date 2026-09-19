@@ -159,6 +159,7 @@ class DQNagent:
         self.input_size = self.state_space_size + self.action_space_size
         self.online_network = DQNnetwork(self.input_size).to(self.device)
         self.target_network = DQNnetwork(self.input_size).to(self.device)
+        self.total_steps = 0
         self._synch_target_network()
         self.optimizer = optim.Adam(self.online_network.parameters(), lr=learning_rate, foreach=False)
         self.loss_function = nn.MSELoss()
@@ -190,8 +191,9 @@ class DQNagent:
     def _synch_target_network(self):
         self.target_network.load_state_dict(self.online_network.state_dict())
 
-    def update_target_network(self, episode):
-        if episode % self.target_update_rate == 0:
+    def update_target_network(self):
+        self.total_steps += 1
+        if self.total_steps % self.target_update_rate == 0:
             self._synch_target_network()
 
     def _state_action_input(self, state, action):

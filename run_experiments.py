@@ -19,8 +19,8 @@ HPARAMS_VS_RANDOM = {
 HPARAMS_SELF = {
     "easy":   dict(n_episodes=10000, max_steps=500, learn_every=40,  gamma=0.95, batch_size=32, learning_rate=0.001,  epsilon_decay=0.999,  epsilon_min=0.05, target_update_rate=50, mem_cap=9000, max_nxt_actions=64),
     "medium": dict(n_episodes=20000, max_steps=600, learn_every=60,  gamma=0.97, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9999, epsilon_min=0.05, target_update_rate=15, mem_cap=15000, max_nxt_actions=64),
-    "hard":   dict(n_episodes=20000, max_steps=1200, learn_every=60, gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9999, epsilon_min=0.05, target_update_rate=6, mem_cap=20000, max_nxt_actions=64),
-    "italy":  dict(n_episodes=10000, max_steps=500, learn_every=50,  gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9997, epsilon_min=0.05, target_update_rate=30, mem_cap=15000, max_nxt_actions=64),
+    "hard":   dict(n_episodes=20000, max_steps=1200, learn_every=60, gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9999, epsilon_min=0.05, target_update_rate=6000, mem_cap=20000, max_nxt_actions=64),
+    "italy":  dict(n_episodes=10000, max_steps=500, learn_every=50,  gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9997, epsilon_min=0.05, target_update_rate=30000, mem_cap=15000, max_nxt_actions=64),
 }
 
 

@@ -8,12 +8,12 @@ from RL import DQNagent
 from seeding import set_seed
 from results_logging import log_run_result
 #costanti
-MODEL_PATH_RAND = "trained_models/third_version/dqn_vs_random"
-MODEL_PATH_SELF = "trained_models/third_version/dqn_vs_self"
+MODEL_PATH_RAND = "trained_models/v1/dqn_vs_random"
+MODEL_PATH_SELF = "trained_models/v1/dqn_vs_self"
 
-TRAIN_LOG_PATH = "results/third_version/training_log.jsonl"
-EVAL_LOG_PATH = "results/third_version/eval_log.jsonl"
-VERB_LOG_PATH = "results/third_version/verb_log.jsonl"
+TRAIN_LOG_PATH = "results/v1/training_log.jsonl"
+EVAL_LOG_PATH = "results/v1/eval_log.jsonl"
+VERB_LOG_PATH = "results/v1/verb_log.jsonl"
 
 def model_path_for(scenario, seed=None):
     suffix = f"_seed{seed}" if seed is not None else ""
@@ -176,7 +176,7 @@ def train(scenario = "easy", n_episodes = 1000, max_steps=5000, opp_controller =
         territories_history.append(final_territories)
 
         agent.decay_eps()
-        agent.update_target_network(episode)
+        agent.update_target_network()
         if episode % 100 == 0:
             n = episode + 1 if episode < 100 else 100
             print(f"Episode {episode:4d} | Wins last 100: {wins} | Losses last 100: {losses} | "
