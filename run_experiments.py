@@ -1,6 +1,6 @@
 import os
 
-from train import train, evaluate, model_path_for, self_model_path_for
+from train_dqn import train, evaluate, model_path_for, self_model_path_for
 
 SEEDS = [0, 1, 2, 3, 4]
 REFERENCE_SEED = SEEDS[0]  # seed usato per generare l'avversario fisso del self-play
@@ -10,7 +10,7 @@ EVAL_SEED_OFFSET = 1000  # seed di valutazione = seed di training + offset (mai 
 SCENARIOS = ["easy", "medium", "hard", "italy"]
 
 HPARAMS_VS_RANDOM = {
-    "easy":   dict(n_episodes=1000,  max_steps=400, learn_every=20,  gamma=0.95, batch_size=32, learning_rate=0.001,  epsilon_decay=0.995,  epsilon_min=0.01, target_update_rate=8000, mem_cap=9000, max_nxt_actions=64),
+    "easy":   dict(n_episodes=1000,  max_steps=400, learn_every=20,  gamma=0.95, batch_size=32, learning_rate=0.001,  epsilon_decay=0.995,  epsilon_min=0.01, target_update_rate=4000, mem_cap=9000, max_nxt_actions=64),
     "medium": dict(n_episodes=2500,  max_steps=400, learn_every=30,  gamma=0.97, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9977, epsilon_min=0.01, target_update_rate=12000, mem_cap=10000, max_nxt_actions=64),
     "hard":   dict(n_episodes=5500,  max_steps=500, learn_every=50,  gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9995, epsilon_min=0.01, target_update_rate=20000, mem_cap=15000, max_nxt_actions=64),
     "italy":  dict(n_episodes=2000,  max_steps=400, learn_every=25,  gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.998,  epsilon_min=0.01, target_update_rate=10000, mem_cap=9000, max_nxt_actions=64),

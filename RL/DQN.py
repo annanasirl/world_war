@@ -247,7 +247,7 @@ class DQNagent:
                 next_actions = random.sample(next_actions, self.max_nxt_actions)
             ns_vec = encode_state(ns).flatten()
             # next_actions contiene già i vettori codificati da
-            # encode_legal_actions_now in train.py: non vanno ri-codificati
+            # encode_legal_actions_now in train_dqn.py: non vanno ri-codificati
             for a_vec in next_actions:
                 flat_rows.append(np.concatenate([ns_vec, a_vec]))
             counts.append(len(next_actions))

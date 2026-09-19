@@ -2,10 +2,10 @@ from .rules import PLAYER1, PLAYER2, NONE, PHASE_DEPLOY, PHASE_ACTION, attack, m
 
 from .controllers import RandomController
 
-_EVENT_REWARDS = {"conquered_enemy": 2,
-                  "conquered_neutral": 1,
+_EVENT_REWARDS = {"conquered_enemy": 4,
+                  "conquered_neutral": 2,
                   "failed_attack": -1,
-                  "none": 0}
+                  "none": -0.5}
 
 class Game:
     def __init__(self, mappa, verbose=False):

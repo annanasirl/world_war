@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
     if not groups:
         print("Nessun risultato trovato in results/eval_log.jsonl. "
-              "Lancia prima run_experiments.py (o train.py/evaluate() direttamente).")
+              "Lancia prima run_experiments.py (o train_dqn.py/evaluate() direttamente).")
     else:
         print("Riepilogo winrate di evaluate() per (algoritmo, mappa, avversario):\n")
         for key, winrates in sorted(groups.items(), key=lambda kv: [str(x) for x in kv[0]]):
