@@ -8,11 +8,12 @@ from RL import DQNagent
 from seeding import set_seed
 from results_logging import log_run_result
 #costanti
-MODEL_PATH_RAND = "trained_models/dqn_vs_random"
-MODEL_PATH_SELF = "trained_models/dqn_vs_self"
+MODEL_PATH_RAND = "trained_models/third_version/dqn_vs_random"
+MODEL_PATH_SELF = "trained_models/third_version/dqn_vs_self"
 
-TRAIN_LOG_PATH = "./results/training_log.jsonl"
-EVAL_LOG_PATH = "./results/eval_log.jsonl"
+TRAIN_LOG_PATH = "results/third_version/training_log.jsonl"
+EVAL_LOG_PATH = "results/third_version/eval_log.jsonl"
+VERB_LOG_PATH = "results/third_version/verb_log.jsonl"
 
 def model_path_for(scenario, seed=None):
     suffix = f"_seed{seed}" if seed is not None else ""
@@ -49,8 +50,8 @@ def load_other_agent(mappa, weigths_path, epsilon=0.0):
     return opp_agent
 
 def train(scenario = "easy", n_episodes = 1000, max_steps=5000, opp_controller =None, learn_every = 1,
-          gamma=0.95, batch_size=32, learning_rate=0.001, epsilon_decay=0.999, epsilon_min=0.01, target_update_rate=50,
-          opp_weigths_path = None, save_path = None, seed=None, opponent_type=None, log_path=TRAIN_LOG_PATH):
+          gamma=0.95, batch_size=32, learning_rate=0.001, epsilon_decay=0.999, epsilon_min=0.01, target_update_rate=50, mem_cap=9000, max_nxt_actions=64,
+          opp_weigths_path = None, save_path = None, seed=None, opponent_type=None, log_path=TRAIN_LOG_PATH, verb_log_path=VERB_LOG_PATH):
     if seed is not None:
         set_seed(seed)
     #creo mappa, il gioco e agent, setto il controller dell'opponente
@@ -60,7 +61,9 @@ def train(scenario = "easy", n_episodes = 1000, max_steps=5000, opp_controller =
                         learning_rate=learning_rate,
                         epsilon_decay=epsilon_decay,
                         epsilon_min=epsilon_min,
-                        target_update_rate=target_update_rate)
+                        target_update_rate=target_update_rate,
+                        mem_capacity=mem_cap,
+                        max_nxt_actions=max_nxt_actions)
     if opp_controller is None:
         if opp_weigths_path is not None:
             opp_agent = load_other_agent(game.mappa, opp_weigths_path)
@@ -74,6 +77,7 @@ def train(scenario = "easy", n_episodes = 1000, max_steps=5000, opp_controller =
     losses = 0
     boh = 0
     steps_sum = 0
+    turns_sum = 0
     territories_sum = 0
     p1wins = 0
     p2wins = 0
@@ -82,6 +86,7 @@ def train(scenario = "easy", n_episodes = 1000, max_steps=5000, opp_controller =
     # finale/il log run-per-run
     outcome_history = []  # +1 vittoria, -1 sconfitta, 0 altro
     steps_history = []
+    turns_history = []
     territories_history = []
 
     start_time = time.time()
@@ -127,7 +132,7 @@ def train(scenario = "easy", n_episodes = 1000, max_steps=5000, opp_controller =
             # (se non vedo cosa fa l'avversario non posso scegliere la prox azione)
             if not done and game.current_player == opp_player:
                 _, opp_reward, done = play_opp_turn(game, opp_player, opp_controller, agent_player)
-                reward += opp_reward
+                reward = opp_reward if done else reward + opp_reward
             next_state = _perspective_state(game, agent_player)
             # prendo le nuove azioni possibili (cambiano di turno in turno)
             next_legal_actions = [] if done else game.get_legal_actions(agent_player)
@@ -147,14 +152,15 @@ def train(scenario = "easy", n_episodes = 1000, max_steps=5000, opp_controller =
             if phase_before == PHASE_ACTION:
                 turns += 1
 
-        if reward == 100:
+        winner = game.check_game_over()
+        if winner == agent_player:
             wins += 1
             outcome_history.append(1)
             if agent_player == PLAYER1:
                 p1wins += 1
             else:
                 p2wins += 1
-        elif reward == -100:
+        elif winner == opp_player:
             losses += 1
             outcome_history.append(-1)
         else:
@@ -162,9 +168,11 @@ def train(scenario = "easy", n_episodes = 1000, max_steps=5000, opp_controller =
             outcome_history.append(0)
 
         steps_sum += steps
+        turns_sum += turns
         final_territories = sum(1 for t in game.mappa if t.get_owner() == agent_player)
         territories_sum += final_territories
         steps_history.append(steps)
+        turns_history.append(turns)
         territories_history.append(final_territories)
 
         agent.decay_eps()
@@ -174,11 +182,18 @@ def train(scenario = "easy", n_episodes = 1000, max_steps=5000, opp_controller =
             print(f"Episode {episode:4d} | Wins last 100: {wins} | Losses last 100: {losses} | "
                   f"Bohs last 100: {boh} | Epsilon: {agent.epsilon:.3f} | "
                   f"p1wins last 100: {p1wins} | p2wins: {p2wins} | "
-                  f"Avg steps: {steps_sum / n:.0f} | Avg agent territories at end: {territories_sum / n:.1f}")
+                  f"Avg steps: {steps_sum / n:.0f} | Avg turns: {turns_sum / n:.0f} | "
+                  f"Avg agent territories at end: {territories_sum / n:.1f}")
+            log_run_result(
+                verb_log_path, run_type="train", algorithm="dqn", scenario=scenario, opponent_type=opponent_type,
+                seed=seed, episode=episode, wins=wins, losses=losses, boh=boh, p1wins=p1wins, p2wins=p2wins,
+                avgsteps=(steps_sum / n), avgturns=(turns_sum / n), avgagentterritories=(territories_sum / n)
+            )
             wins = 0
             losses = 0
             boh = 0
             steps_sum = 0
+            turns_sum = 0
             territories_sum = 0
             p1wins = 0
             p2wins = 0
@@ -209,13 +224,14 @@ def train(scenario = "easy", n_episodes = 1000, max_steps=5000, opp_controller =
         hyperparams=dict(
             gamma=gamma, batch_size=batch_size, learning_rate=learning_rate,
             epsilon_decay=epsilon_decay, epsilon_min=epsilon_min,
-            target_update_rate=target_update_rate, learn_every=learn_every,
+            target_update_rate=target_update_rate, learn_every=learn_every, mem_capacity=mem_cap, max_nxt_actions=max_nxt_actions
         ),
         train_time_seconds=round(train_time, 1),
         final_winrate=round(final_winrate, 4),
         final_window_size=len(final_outcomes),
         overall_winrate=round(overall_winrate, 4),
         avg_steps_final_window=round(sum(steps_history[-window:]) / len(steps_history[-window:]), 1),
+        avg_turns_final_window=round(sum(turns_history[-window:]) / len(turns_history[-window:]), 1),
         avg_territories_final_window=round(sum(territories_history[-window:]) / len(territories_history[-window:]), 2),
     )
     return agent
@@ -237,6 +253,7 @@ def evaluate(scenario, agent_weights_path, opp_weigths_path=None, n_episodes=300
         opp_controller = RandomController()
 
     wins = losses = boh = 0
+    outcome_history = []
     start_time = time.time()
     for episode in range(n_episodes):
         agent_player = PLAYER1 if episode % 2 == 0 else PLAYER2
@@ -258,12 +275,16 @@ def evaluate(scenario, agent_weights_path, opp_weigths_path=None, n_episodes=300
             if phase_before == PHASE_ACTION:
                 turns += 1
 
-        if reward == 100:
+        winner = game.check_game_over()
+        if winner == agent_player:
             wins += 1
-        elif reward == -100:
+            outcome_history.append(1)
+        elif winner == opp_player:
             losses += 1
+            outcome_history.append(-1)
         else:
             boh += 1
+            outcome_history.append(0)
     eval_time = time.time() - start_time
 
     opp_name = "Random" if opp_weigths_path is None else os.path.basename(opp_weigths_path)
@@ -291,34 +312,3 @@ def evaluate(scenario, agent_weights_path, opp_weigths_path=None, n_episodes=300
     )
 
     return wins, losses, boh
-
-#if __name__ == "__main__":
-    ##ok
-    #train(scenario="easy", n_episodes=1000, max_steps=400, learn_every=20, gamma=0.95, batch_size=32, learning_rate=0.001, epsilon_decay=0.995, epsilon_min=0.01, target_update_rate=50)
-    #evaluate("easy", model_path_for("easy"), n_episodes=300)
-
-    ##migliorabile
-    #train(scenario="medium", n_episodes=2500, max_steps=400, learn_every=30, gamma=0.97, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9977, epsilon_min=0.01, target_update_rate=50)
-    #evaluate("medium", model_path_for("medium"), n_episodes=300)
-
-    #train(scenario="hard", n_episodes=5500, max_steps=500, learn_every=50, gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9995, epsilon_min=0.01, target_update_rate=100)
-    #evaluate("hard", model_path_for("hard"), n_episodes=300)
-
-    ##ok
-    #train(scenario="italy", n_episodes=2000, max_steps=400, learn_every=25, gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.998, epsilon_min=0.01, target_update_rate=100)
-    #evaluate("italy", model_path_for("italy"), n_episodes=300)
-
-    ##ok
-    #train(scenario="easy", n_episodes=10000, max_steps=500, learn_every=40, gamma=0.95, batch_size=32, learning_rate=0.001, epsilon_decay=0.999, epsilon_min=0.01, target_update_rate=50, opp_weigths_path=model_path_for("easy"), save_path=self_model_path_for("easy"))
-    #evaluate("easy", agent_weights_path=self_model_path_for("easy"), opp_weigths_path=model_path_for("easy"), n_episodes=300)
-
-    #train(scenario="italy", n_episodes=10000, max_steps=500, learn_every=50, gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9995, epsilon_min=0.01, target_update_rate=100, opp_weigths_path=model_path_for("italy"), save_path=self_model_path_for("italy"))
-    #evaluate("italy", agent_weights_path=self_model_path_for("italy"), opp_weigths_path=model_path_for("italy"), n_episodes=300)
-
-    ##migliorabile
-    #train(scenario="medium", n_episodes=10000, max_steps=700, learn_every=60, gamma=0.97, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9995, epsilon_min=0.01, target_update_rate=50, opp_weigths_path=model_path_for("medium"), save_path=self_model_path_for("medium"))
-    #evaluate("medium", agent_weights_path=self_model_path_for("medium"), opp_weigths_path=model_path_for("medium"), n_episodes=300)
-
-    #train(scenario="hard", n_episodes=10000, max_steps=500, learn_every=100, gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9995, epsilon_min=0.01, target_update_rate=100, opp_weigths_path=model_path_for("hard"), save_path=self_model_path_for("hard"))
-    #evaluate("hard", agent_weights_path=self_model_path_for("hard"), opp_weigths_path=model_path_for("hard"), n_episodes=300)
-

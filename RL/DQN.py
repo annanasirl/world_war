@@ -14,14 +14,10 @@ INPUT_SIZE = STATE_SPACE_SIZE + ACTION_SPACE_SIZE
 
 #il gioco ci ritorna lo stato in un modo che la rete non può propriamente usare
 #quindi questa funzione lo rende utilizzabile
+_OWNER_MAP = {PLAYER1: 1.0, PLAYER2: -1.0, NONE: 0.0}
+
 def encode_state(state):
-    owner_map = {PLAYER1: 1, PLAYER2: -1, NONE: 0}
-    encoded = []
-    for val in state:
-        if isinstance(val, str):
-            encoded.append(owner_map[val])
-        else:
-            encoded.append(val / 50.0) #boh #T capire qui perchè avevo messo 50?
+    encoded = [_OWNER_MAP[v] if isinstance(v, str) else v / 50.0 for v in state]
     return np.array(encoded, dtype=np.float32).reshape(1, -1)
 
 #4 tipi di azioni tipo azione one hot coded,
@@ -145,7 +141,7 @@ class DQNagent:
     def __init__(self, mappa, epsilon=1.0, gamma=0.95,
                  batch_size=32, learning_rate=0.001,
                  epsilon_decay=0.995, epsilon_min=0.05,
-                 target_update_rate=50):
+                 target_update_rate=50, mem_capacity=9000, max_nxt_actions=64):
         self.mappa = mappa
         self.territory_to_idx = {terr: i for i, terr in enumerate(mappa)} #questo x velocizzare encode acton
         self.epsilon = epsilon
@@ -154,7 +150,9 @@ class DQNagent:
         self.gamma = gamma
         self.batch_size = batch_size
         self.target_update_rate = target_update_rate
-        self.replay_memory = ReplayMemory()
+        self.mem_capacity = mem_capacity
+        self.replay_memory = ReplayMemory(capacity=self.mem_capacity)
+        self.max_nxt_actions = max_nxt_actions
         self.device = torch.device("cpu")
         self.state_space_size = 2 * len(mappa)
         self.action_space_size = ACTION_SPACE_SIZE
@@ -162,7 +160,7 @@ class DQNagent:
         self.online_network = DQNnetwork(self.input_size).to(self.device)
         self.target_network = DQNnetwork(self.input_size).to(self.device)
         self._synch_target_network()
-        self.optimizer = optim.Adam(self.online_network.parameters(), lr=learning_rate)
+        self.optimizer = optim.Adam(self.online_network.parameters(), lr=learning_rate, foreach=False)
         self.loss_function = nn.MSELoss()
 
     #funzione per il decay di epsilon
@@ -243,6 +241,8 @@ class DQNagent:
             if not next_actions:
                 counts.append(0)
                 continue
+            if len(next_actions) > self.max_nxt_actions:
+                next_actions = random.sample(next_actions, self.max_nxt_actions)
             ns_vec = encode_state(ns).flatten()
             # next_actions contiene già i vettori codificati da
             # encode_legal_actions_now in train.py: non vanno ri-codificati
@@ -271,6 +271,6 @@ class DQNagent:
         loss = self.loss_function(q_pred, td_targets.detach())
         self.optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.online_network.parameters(), max_norm=1.0)
+        torch.nn.utils.clip_grad_norm_(self.online_network.parameters(), max_norm=1.0, foreach=False)
         self.optimizer.step()
         return loss.item()

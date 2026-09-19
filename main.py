@@ -4,7 +4,7 @@ from game import Game, HumanController, RandomController, DQNController, PLAYER1
     PHASE_ACTION
 from RL import DQNagent
 
-MODEL_PATH = "trained_models/dqn_vs_random"
+MODEL_PATH = "trained_models/first_version/dqn_vs_random"
 
 def model_path_for(diff):
     return os.path.join(MODEL_PATH, f"{diff}_dqn_weights_rand__seed0.pth")

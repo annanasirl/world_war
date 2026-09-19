@@ -2,9 +2,9 @@ from .rules import PLAYER1, PLAYER2, NONE, PHASE_DEPLOY, PHASE_ACTION, attack, m
 
 from .controllers import RandomController
 
-_EVENT_REWARDS = {"conquered enemy": 2,
-                  "conquered neutral": 1,
-                  "failed attack": -1,
+_EVENT_REWARDS = {"conquered_enemy": 2,
+                  "conquered_neutral": 1,
+                  "failed_attack": -1,
                   "none": 0}
 
 class Game:
@@ -57,8 +57,8 @@ class Game:
             if t.get_owner() != owner or t.get_units_stored() <= 1:
                 continue
             max_t = t.get_units_stored() - 1
+            options = troop_options(max_t)
             for neighbor in t.get_neighbors():
-                options = troop_options(max_t)
                 if neighbor.get_owner() != owner:
                     actions.extend(("attack", t, neighbor, troops) for troops in options)
                 else:
@@ -69,28 +69,36 @@ class Game:
     def step(self, action, player):
         action_type = action[0]
         if player != self.current_player:
-            return self.get_state(), -10, False
+            #return self.get_state(), -10, False
+            return None, -10, False
         if self.phase == PHASE_DEPLOY:
             return self._step_deploy(action_type, action)
         if self.phase == PHASE_ACTION:
             return self._step_action(action_type, action)
-        return self.get_state(), -10, False
+        #return self.get_state(), -10, False
+        return None, -10, False
+
+
 
     def _step_deploy(self, action_type, action):
         if action_type != "deploy":
-            return self.get_state(), -10, False
+            # return self.get_state(), -10, False
+            return None, -10, False
         _, territory, amount = action
         if amount < 0 or amount > self._deploy_pool:
-            return self.get_state(), -10, False
+            # return self.get_state(), -10, False
+            return None, -10, False
         if territory is not None:
             if territory.get_owner() != self.current_player:
-                return self.get_state(), -10, False
+                # return self.get_state(), -10, False
+                return None, -10, False
             territory.add_units(amount)
             self._deploy_pool -= amount
         self._deploy_index += 1
         if self._deploy_index >= len(self._deploy_territories) or self._deploy_pool == 0:
             self.force_action_phase()
-        return self.get_state(), 0, False
+        #return self.get_state(), 0, False
+        return None, 0, False
 
     def _step_action(self, action_type, action):
         acting_player = self.current_player
@@ -99,12 +107,14 @@ class Game:
         if action_type == "attack":
             _, attacker, defender, troops = action
             if attacker.get_owner() != acting_player:
-                return self.get_state(), -10, False
+                # return self.get_state(), -10, False
+                return None, -10, False
             defender_owner_before = defender.get_owner()
             if not attack(attacker, defender, troops):
                 if self.verbose:
                     print(f"[{self.current_player}] Invalid attack.")
-                return self.get_state(), -10, False
+                #return self.get_state(), -10, False
+                return None, -10, False
             if defender.get_owner() == acting_player:
                 if defender_owner_before == NONE:
                     self._last_event = (acting_player, "conquered_neutral")
@@ -123,11 +133,13 @@ class Game:
         elif action_type == "move":
             _, source, destination, troops = action
             if source.get_owner() != acting_player:
-                return self.get_state(), -10, False
+                #return self.get_state(), -10, False
+                return None, -10, False
             if not move_troops(source, destination, troops):
                 if self.verbose:
                     print(f"[{self.current_player}] Invalid move.")
-                return self.get_state(), -10, False
+                 # return self.get_state(), -10, False
+                return None, -10, False
             if self.verbose:
                 print(f"[{self.current_player}] Moved {troops} troops from {source.get_name()} to {destination.get_name()}.")
 
@@ -136,7 +148,8 @@ class Game:
                 print(f"[{self.current_player}] No action taken.")
 
         else:
-            return self.get_state(), -10, False
+            # return self.get_state(), -10, False
+            return None, -10, False
 
         end_state = self._check_and_report_end(acting_player)
         if end_state is not None:
@@ -147,7 +160,9 @@ class Game:
         self._start_deploy_phase(self.current_player)
         self._deploy_index = 0
 
-        return self.get_state(), self.reward_for(acting_player), False
+        #return self.get_state(), self.reward_for(acting_player), False
+
+        return None, self.reward_for(acting_player), False
 
     def _switch_players(self, player):
         if player == PLAYER1:
@@ -160,33 +175,24 @@ class Game:
             return None
         opponent = self._switch_players(player)
         if winner == player:
-            return self.get_state(), 100, True
+            #return self.get_state(), 100, True
+            return None, 100, True
         if winner == opponent:
-            return self.get_state(), -100, True
+            #return self.get_state(), -100, True
+            return None, -100, True
         return None
 
     # Stato e reward
 
     #ritorna i territori con il loro owner e quante truppe hanno
     def get_state(self):
-        state = []
-        for territory in self.mappa:
-            state.append(territory.get_owner())
-            state.append(territory.get_units_stored())
-        return state
+        return [x for t in self.mappa for x in (t.get_owner(), t.get_units_stored())]
 
     #serve per scambiare player1 e player2 (così la rete DQN pensa sempre di essere "player1"
     #anche quando la faccio giocare come player 2
     def get_swapped_state(self):
-        swapped = []
-        for val in self.get_state():
-            if val == PLAYER1:
-                swapped.append(PLAYER2)
-            elif val == PLAYER2:
-                swapped.append(PLAYER1)
-            else:
-                swapped.append(val)
-        return swapped
+        swap = {PLAYER1: PLAYER2, PLAYER2: PLAYER1}
+        return [swap.get(v, v) for v in self.get_state()]
 
     #reward intermedia
     def reward_for(self, player):

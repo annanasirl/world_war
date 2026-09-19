@@ -10,17 +10,17 @@ EVAL_SEED_OFFSET = 1000  # seed di valutazione = seed di training + offset (mai 
 SCENARIOS = ["easy", "medium", "hard", "italy"]
 
 HPARAMS_VS_RANDOM = {
-    "easy":   dict(n_episodes=1000,  max_steps=400, learn_every=20,  gamma=0.95, batch_size=32, learning_rate=0.001,  epsilon_decay=0.995,  epsilon_min=0.01, target_update_rate=50),
-    "medium": dict(n_episodes=2500,  max_steps=400, learn_every=30,  gamma=0.97, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9977, epsilon_min=0.01, target_update_rate=50),
-    "hard":   dict(n_episodes=5500,  max_steps=500, learn_every=50,  gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9995, epsilon_min=0.01, target_update_rate=100),
-    "italy":  dict(n_episodes=2000,  max_steps=400, learn_every=25,  gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.998,  epsilon_min=0.01, target_update_rate=100),
+    "easy":   dict(n_episodes=1000,  max_steps=400, learn_every=20,  gamma=0.95, batch_size=32, learning_rate=0.001,  epsilon_decay=0.995,  epsilon_min=0.01, target_update_rate=50, mem_cap=9000, max_nxt_actions=64),
+    "medium": dict(n_episodes=2500,  max_steps=400, learn_every=30,  gamma=0.97, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9977, epsilon_min=0.01, target_update_rate=50, mem_cap=10000, max_nxt_actions=64),
+    "hard":   dict(n_episodes=5500,  max_steps=500, learn_every=50,  gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9995, epsilon_min=0.01, target_update_rate=6, mem_cap=15000, max_nxt_actions=64),
+    "italy":  dict(n_episodes=2000,  max_steps=400, learn_every=25,  gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.998,  epsilon_min=0.01, target_update_rate=100, mem_cap=9000, max_nxt_actions=64),
 }
 
 HPARAMS_SELF = {
-    "easy":   dict(n_episodes=10000, max_steps=500, learn_every=40,  gamma=0.95, batch_size=32, learning_rate=0.001,  epsilon_decay=0.999,  epsilon_min=0.01, target_update_rate=50),
-    "medium": dict(n_episodes=10000, max_steps=700, learn_every=60,  gamma=0.97, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9995, epsilon_min=0.01, target_update_rate=50),
-    "hard":   dict(n_episodes=10000, max_steps=500, learn_every=100, gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9995, epsilon_min=0.01, target_update_rate=100),
-    "italy":  dict(n_episodes=10000, max_steps=500, learn_every=50,  gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9995, epsilon_min=0.01, target_update_rate=100),
+    "easy":   dict(n_episodes=10000, max_steps=500, learn_every=40,  gamma=0.95, batch_size=32, learning_rate=0.001,  epsilon_decay=0.999,  epsilon_min=0.05, target_update_rate=50, mem_cap=9000, max_nxt_actions=64),
+    "medium": dict(n_episodes=20000, max_steps=600, learn_every=60,  gamma=0.97, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9999, epsilon_min=0.05, target_update_rate=15, mem_cap=15000, max_nxt_actions=64),
+    "hard":   dict(n_episodes=20000, max_steps=1200, learn_every=60, gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9999, epsilon_min=0.05, target_update_rate=6, mem_cap=20000, max_nxt_actions=64),
+    "italy":  dict(n_episodes=10000, max_steps=500, learn_every=50,  gamma=0.99, batch_size=64, learning_rate=0.0005, epsilon_decay=0.9997, epsilon_min=0.05, target_update_rate=30, mem_cap=15000, max_nxt_actions=64),
 }
 
 
@@ -49,8 +49,31 @@ def run_self_play(scenario):
                  n_episodes=EVAL_EPISODES, seed=seed + EVAL_SEED_OFFSET)
 
 
+# if __name__ == "__main__":
+#     for scenario in SCENARIOS:
+#         run_vs_random(scenario)
+#     for scenario in SCENARIOS:
+#         run_self_play(scenario)
+
+# if __name__ == "__main__":
+#     # resume: hard vs random da seed 3 (seed 0,1,2 già completati)
+#     hp_hard = HPARAMS_VS_RANDOM["hard"]
+#     for seed in [3, 4]:
+#         save_path = model_path_for("hard", seed=seed)
+#         train(scenario="hard", seed=seed, opponent_type="random",
+#               save_path=save_path, **hp_hard)
+#         evaluate("hard", agent_weights_path=save_path,
+#                  n_episodes=EVAL_EPISODES, seed=seed + EVAL_SEED_OFFSET)
+#
+#     # italy vs random non ancora iniziato: tutti e 5 i seed
+#     run_vs_random("italy")
+#
+#     # self-play: presuppone che vs_random sia completo per ogni scenario
+#     # (easy/medium già finiti prima, hard/italy dopo i due blocchi sopra)
+#     for scenario in ["easy", "medium", "hard", "italy"]:
+#         run_self_play(scenario)
+
 if __name__ == "__main__":
-    for scenario in SCENARIOS:
-        run_vs_random(scenario)
-    for scenario in SCENARIOS:
+    #run_vs_random("hard")
+    for scenario in ["italy", "hard"]:
         run_self_play(scenario)
