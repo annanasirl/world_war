@@ -48,12 +48,18 @@ def run_self_play(scenario):
         evaluate(scenario, agent_weights_path=save_path, opp_weigths_path=reference_opponent,
                  n_episodes=EVAL_EPISODES, seed=seed + EVAL_SEED_OFFSET)
 
-
 if __name__ == "__main__":
-    for scenario in SCENARIOS:
-        run_vs_random(scenario)
-    for scenario in SCENARIOS:
-        run_self_play(scenario)
+    hp_hard = HPARAMS_VS_RANDOM["hard"]
+    save_path = model_path_for("hard", seed=4)
+    train(scenario="hard", seed=4, opponent_type="random", save_path=save_path, **hp_hard)
+    evaluate("hard", agent_weights_path=save_path, n_episodes=EVAL_EPISODES, seed=4 + EVAL_SEED_OFFSET)
+    run_self_play("italy")
+
+# if __name__ == "__main__":
+#     for scenario in SCENARIOS:
+#         run_vs_random(scenario)
+#     for scenario in SCENARIOS:
+#         run_self_play(scenario)
 
 # if __name__ == "__main__":
 #     # resume: hard vs random da seed 3 (seed 0,1,2 già completati)
