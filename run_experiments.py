@@ -51,7 +51,8 @@ def run_self_play(scenario):
 if __name__ == "__main__":
     hp_hard = HPARAMS_VS_RANDOM["hard"]
     save_path = model_path_for("hard", seed=4)
-    train(scenario="hard", seed=4, opponent_type="random", save_path=save_path, **hp_hard)
+    reference_opponent = model_path_for("hard", seed=REFERENCE_SEED)
+    train(scenario="hard", seed=4, opponent_type="self", opp_weigths_path=reference_opponent, save_path=save_path, **hp_hard)
     evaluate("hard", agent_weights_path=save_path, n_episodes=EVAL_EPISODES, seed=4 + EVAL_SEED_OFFSET)
     run_self_play("italy")
 

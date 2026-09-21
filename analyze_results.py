@@ -18,7 +18,7 @@ def summarize(values):
     return {"n": n, "mean": mean, "std": std, "ci95": ci95}
 
 
-def group_eval_winrates(eval_log_path="results/second_version/eval_log.jsonl"):
+def group_eval_winrates(eval_log_path="results/v1/eval_log.jsonl"):
     """Ritorna {(algorithm, scenario, opponent_type): [winrate_seed0, winrate_seed1, ...]}."""
     records = load_results(eval_log_path)
     groups = defaultdict(list)
